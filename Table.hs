@@ -1,103 +1,62 @@
+-- DO NOT MODIFY THIS FILE. DO NOT SUBMIT THIS FILE.
 
-module Table(Table(), empty, insert, exists, lookup, delete, iterate,
-             keys, values, fromList, toList) where
+{- A key-value store: each key corresponds to at most one data item. -}
+
+module Table(Table, empty, insert, exists, lookup, delete, iterate, keys, values) where
 
 import Prelude hiding (lookup, iterate)
-import Data.List (find)
 
----------------------------------------------------------------------------
---                            INTERFACE                                  --
--- This part of the code is "available" and the things you may depend on --
----------------------------------------------------------------------------
-{- empty
-  RETURNS an empty table
--}
+--------------------------------------------------------------------------------
+-- interface
+--------------------------------------------------------------------------------
+
+-- the empty table with keys of type k and values of type v
 empty :: Table k v
 
 {- insert t k v
-  Insert the mapping (k, v) into t. Overwrites the old value if k is already in t.
-  RETURNS a new table, where v has been inserted into t with key k
-  EXAMPLES: insert empty                 1 "one" == fromList [(1,"one")]
-            insert fromList [(1,"two")]) 1 "one" == fromList [(1,"one")]
--}
+   RETURNS: the table t with value v inserted with key k.
+   If key k already exists in the table, its old value is first forgotten.
+ -}
 insert :: Eq k => Table k v -> k -> v -> Table k v
 
 {- exists t k
-  Check if k is present among the keys in t.
-  RETURNS true if k exists in t, false otherwise
--}
+   RETURNS: true iff key k already exists in the table t
+ -}
 exists :: Eq k => Table k v -> k -> Bool
 
 {- lookup t k
-  Look up the value that is mapped to k in t.
-  RETURNS: `Just v` if k is present and has value v, Nothing otherwise
-  EXAMPLES: lookup (fromList [(1,"one")]) 1 == Just "one"
-            lookup (fromList [(1,"one")]) 2 == Nothing
--}
+   RETURNS: Just the value associated with key k in the table t, or None if the key is absent
+ -}
 lookup :: Eq k => Table k v -> k -> Maybe v
 
 {- delete t k
-  Remove a key k (and corresponding value) from a table. Does nothing if k is not in t.
-  RETURN the table t without a mapping to key k
--}
+   RETURNS: The table t minus the key k and its associated value.
+ -}
 delete :: Eq k => Table k v -> k -> Table k v
 
-{- iterate t f b0
-  Applies the function f in a fold-like manner to all key-value pairs in the table (b0 is
-  the initial accumulator value).
-  RETURNS: final accumulator value, starting from b0 after applying f over each key-value
-          pair in t
-  EXAMPLE: 3 == iterate (fromList [('a','b'),('c','d'),('e','f')] ) (\n _ -> n+1) 0
--}
+{- iterate t f acc
+   RETURNS: The result of calling f on all key-value pairs of t in some order, 
+                  with an accumulator that is initially acc.
+ -}
 iterate :: Table k v -> (b -> (k, v) -> b) -> b -> b
 
-{- keys t f acc0
-  Like `iterate` but only over keys.
-
-  EXAMPLE: "eca" == keys (fromList [('a','b'),('c','d'),('e','f')] ) (\s c -> c:s) ""
--}
-keys    :: Table k v -> (b -> k -> b) -> b -> b
-
-{- values t f acc0
-  Like `iterate` but only over values.
-  EXAMPLE: 228 == values (fromList [('a',97),('A',65),('B',66)] ) (+) 0
--}
-values  :: Table k v -> (b -> v -> b) -> b -> b
-
-{- fromList xs
-  Given a list of (key,value)-tuples, it inserts all these values.
-
-  If there are multiple values for a given key in the list,
-  the LAST value in the list is kept.
-
-  EXAMPLE: fromList [(1,1),(1,2)] == fromList [(1,2)]
--}
-fromList :: Eq k => [(k,v)] -> Table k v
-
-
-{- toList t
-  Export a table t as a list of key-value tuples.
-  EXAMPLE: (fromList . toList) t == t
--}
-toList :: Table k v -> [(k,v)]
-
-
-
----------------------------------------------------------------------------
---                            IMPLEMENTATION                             --
--- Below this line is only for the module authors,                       --
---  Module users should not depend on what it is or how it is written    --
----------------------------------------------------------------------------
-
-{- Table k v
-   In T l, the elements of l are pairs (key,val)
-     where key is the key and val is the value.
-   INVARIANT: there is at most one item with a given key in l.
+{- keys t f acc
+   RETURNS: The result of calling f on all keys of t in some order, 
+                  with an accumulator that is initially acc.
  -}
-newtype Table k v = T [(k, v)] deriving Eq
+keys :: Table k v -> (b -> k -> b) -> b -> b
 
-instance (Show k, Show v) => Show (Table k v) where
-  show (T xs) = "fromList " ++ show xs
+{- values t f acc
+   RETURNS: The result of calling f on all values of t in some order, 
+                  with an accumulator that is initially acc.
+ -}
+values :: Table k v -> (b -> v -> b) -> b -> b
+
+--------------------------------------------------------------------------------
+-- implementation
+--------------------------------------------------------------------------------
+
+newtype Table k v = T [(k, v)] deriving (Show)
 
 empty = T []
 
@@ -105,18 +64,26 @@ insert (T t) k v = T $ insert' t k v
   where
     insert' [] k v = [(k,v)]
     insert' ((k', v'):as) k v
-      | k == k'   = (k,v) : as
-      | otherwise = (k',v') : insert' as k v
+            | k == k'    = (k,v) : as
+            | otherwise = (k',v') : insert' as k v
 
-exists (T t) k = any ((==k).fst) t
-lookup (T t) k = snd <$> find ((==k).fst) t
-delete (T t) k = T $ filter ((/=k).fst) t
+exists (T t) k = exists' t k
+  where
+    exists' [] k = False
+    exists' ((k', _):as) k = if k == k' then True else exists' as k
+
+lookup (T t) k = lookup' t k
+  where
+    lookup' [] k = Nothing
+    lookup' ((k', v):as) k = if k == k' then Just v else lookup' as k
+
+delete (T t) k = T $ delete' t k
+  where
+    delete' [] _ = []
+    delete' ((k', v'):as) k = if k == k' then as else (k',v') : delete' as k
 
 iterate (T t) f d = foldl f d t
-keys    (T t) f d = foldl f d (map fst t)
-values  (T t) f d = foldl f d (map snd t)
 
+keys (T t) f d = foldl f d (map fst t)
 
--- får ej användas?
-toList  (T t) = t
-fromList = foldl (\t (k,v) -> insert t k v) empty
+values (T t) f d = foldl f d (map snd t)

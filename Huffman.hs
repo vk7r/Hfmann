@@ -22,20 +22,20 @@ type BitCode = [Bool]
          times the character occurs in s
    EXAMPLES:
  -}
- characterCounts :: String -> Table Char Int
- characterCounts s = characterCounts' Table.empty s
+characterCounts :: String -> Table Char Int
+characterCounts s = characterCounts' Table.empty s
 
-
- characterCounts' acc [] = acc
- characterCounts' acc (x:xs)
-   | Table.exists acc x = let Just c = Table.lookup acc x
-     in characterCounts' (Table.insert acc x (c+1)) xs
-   |otherwise = characterCounts' (Table.insert acc x 1) xs
+characterCounts' :: Table Char Int -> String -> Table Char Int
+characterCounts' acc [] = acc
+characterCounts' acc (x:xs)
+ | Table.exists acc x = let Just c = Table.lookup acc x
+   in characterCounts' (Table.insert acc x (c+1)) xs
+ |otherwise = characterCounts' (Table.insert acc x 1) xs
 
 -- modify and add comments as needed
-data HuffmanTree = Leaf Char Int | Node (HuffmanTree) Int (HuffmanTree)
+data HuffmanTree = Leaf Char Int | Node Int (HuffmanTree) (HuffmanTree) deriving (Show, Eq)
 
--- Node (Leaf "a" 1) 3 (Leaf "b" 2)
+tree1 = (Node 7 (Leaf 'b' 2) (Node 5 (Node 0 (Leaf 'z' 0) (Leaf 'v' 0)) (Leaf 'd' 2)))
 
 {- huffmanTree t
    PRE:  t maps each key to a positive value
@@ -51,7 +51,16 @@ huffmanTree = undefined
    EXAMPLES:
  -}
 codeTable :: HuffmanTree -> Table Char BitCode
-codeTable = undefined
+codeTable hTree = fromList (codeLst hTree [])
+
+codeLst :: HuffmanTree -> BitCode -> [(Char, BitCode)]
+codeLst (Leaf c n) lst = [(c, lst)]
+codeLst (Node a l r) lst = codeLst l (False : lst) ++ codeLst r (True : lst)
+
+
+fromList :: Eq k => [(k,v)] -> Table k v
+fromList = foldl (\t (k,v) -> Table.insert t k v) Table.empty
+
 
 
 {- encode h s
