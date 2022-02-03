@@ -33,17 +33,54 @@ characterCounts' acc (x:xs)
  |otherwise = characterCounts' (Table.insert acc x 1) xs
 
 -- modify and add comments as needed
-data HuffmanTree = Leaf Char Int | Node Int (HuffmanTree) (HuffmanTree) deriving (Show, Eq)
+data HuffmanTree = Leaf Char Int | Node (HuffmanTree) Int (HuffmanTree) deriving (Show, Eq)
+-- INVARIANT:
 
-tree1 = (Node 7 (Leaf 'b' 2) (Node 5 (Node 0 (Leaf 'z' 0) (Leaf 'v' 0)) (Leaf 'd' 2)))
+
+tree1 = (Node (Node (Leaf 'b' 1) 2 (Leaf 'a' 1)) 5 (Leaf 'c' 3))
+
 
 {- huffmanTree t
+  iterates over all (key, value) pairs in t and adds them as HuffmanTrees into a PriorityQueue,
+  merges the trees in the PriorityQueue in increasing order of priority into a single HuffmanTree.
    PRE:  t maps each key to a positive value
    RETURNS: a Huffman tree based on the character counts in t
    EXAMPLES:
  -}
 huffmanTree :: Table Char Int -> HuffmanTree
-huffmanTree = undefined
+huffmanTree t = hqmerge $ Table.iterate t hqinsert PriorityQueue.empty
+
+{- hqinsert q (x, c)
+  inserts a HuffmanTree that consists just of a leaf labeled with x and c into the priority queue, with priority c
+  RETURNS: q but with the (Leaf x c, c) inserted
+-}
+hqinsert :: PriorityQueue HuffmanTree -> (Char, Int) -> PriorityQueue HuffmanTree
+hqinsert q (x,c) = PriorityQueue.insert q (Leaf x c, c)
+
+{-hqmerge q
+  Merges the HuffmanTrees in q into one tree, in increasing order of priority
+  If there is only one tree in q, that tree is returned, otherwise it merges the trees until there is only one.
+  RETURNS: A merged tree consisting of all the trees in q
+-}
+hqmerge :: PriorityQueue HuffmanTree -> HuffmanTree
+hqmerge q
+  | PriorityQueue.is_empty $ snd $ least q = fst $ fst $ least q
+  | otherwise = hqmerge $ hqmerge' q
+
+
+{-hqmerge' q
+  Helper function for hqmerge.
+  Merges the two trees with least priority in q
+  RETURNS: q but with the two trees with least priority merged into one tree.
+-}
+hqmerge' :: PriorityQueue HuffmanTree -> PriorityQueue HuffmanTree
+hqmerge' q =
+  let ((l1, p1), rest1) = least q
+  in
+    let ((l2, p2), rest2) = least rest1
+      in PriorityQueue.insert rest2 (Node l1 (p1+p2) l2, p1+p2)
+
+
 
 
 {- codeTable h
@@ -55,7 +92,7 @@ codeTable hTree = fromList (codeLst hTree [])
 
 codeLst :: HuffmanTree -> BitCode -> [(Char, BitCode)]
 codeLst (Leaf c n) lst = [(c, lst)]
-codeLst (Node a l r) lst = codeLst l (False : lst) ++ codeLst r (True : lst)
+codeLst (Node l a r) lst = codeLst l (False : lst) ++ codeLst r (True : lst)
 
 fromList :: Eq k => [(k,v)] -> Table k v
 fromList = foldl (\t (k,v) -> Table.insert t k v) Table.empty
@@ -75,8 +112,8 @@ encode = undefined
    EXAMPLES:
  -}
 compress :: String -> (HuffmanTree, BitCode)
-compress str = undefined -- ( hTree, total_bitcode (codeTable hTree))
-  --where hTree = huffmanTree (characterCounts str)
+compress str = ( hTree, total_bitcode (codeTable hTree))
+  where hTree = huffmanTree (characterCounts str)
 
 total_bitcode :: Table Char BitCode -> BitCode
 total_bitcode table = Table.values table (\s c -> s ++ c) []
