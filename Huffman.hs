@@ -57,7 +57,6 @@ codeLst :: HuffmanTree -> BitCode -> [(Char, BitCode)]
 codeLst (Leaf c n) lst = [(c, lst)]
 codeLst (Node a l r) lst = codeLst l (False : lst) ++ codeLst r (True : lst)
 
-
 fromList :: Eq k => [(k,v)] -> Table k v
 fromList = foldl (\t (k,v) -> Table.insert t k v) Table.empty
 
@@ -76,7 +75,11 @@ encode = undefined
    EXAMPLES:
  -}
 compress :: String -> (HuffmanTree, BitCode)
-compress = undefined
+compress str = undefined -- ( hTree, total_bitcode (codeTable hTree))
+  --where hTree = huffmanTree (characterCounts str)
+
+total_bitcode :: Table Char BitCode -> BitCode
+total_bitcode table = Table.values table (\s c -> s ++ c) []
 
 
 {- decompress h bits
