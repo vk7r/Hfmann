@@ -21,7 +21,8 @@ type BitCode = [Bool]
 {- characterCounts s
    RETURNS: a table that maps each character that occurs in s to the number of
          times the character occurs in s
-   EXAMPLES:
+   EXAMPLES: characterCounts "Example text" =
+            T [('E',1),('x',2),('a',1),('m',1),('p',1),('l',1),('e',2),(' ',1),('t',2)]
  -}
 characterCounts :: String -> Table Char Int
 characterCounts = characterCounts' Table.empty
@@ -98,11 +99,28 @@ codeTable :: HuffmanTree -> Table Char BitCode
 codeTable Empty = Table.empty
 codeTable hTree = fromList (codeLst hTree [])
 
+
+{- codeLst hTree BitCode
+  Completely goes through the given HuffmanTree and maps each leafs char to its respective Huffman code
+  PRE: input tree is not Empty
+  RETURNS: a Table that maps each char to its respective Huffman code from the input tree
+
+  EXAMPLES: codeTable (Node (Node (Leaf 'b' 1) 2 (Leaf 'a' 1)) 5 (Leaf 'c' 3)) =
+                         T [('b',[False,False]),('a',[False,True]),('c',[True])]
+-}
 -- PRE input tree is non empty
 codeLst :: HuffmanTree -> BitCode -> [(Char, BitCode)]
 codeLst (Leaf c n) lst = [(c, lst)]
 codeLst (Node l a r) lst = codeLst l (lst ++ [False]) ++ codeLst r (lst ++ [True])
 
+{- fromList xs
+  Given a list of (key,value)-tuples, it inserts all these values.
+
+  If there are multiple values for a given key in the list,
+  the LAST value in the list is kept.
+
+  EXAMPLE: fromList [(1,1),(1,2)] == fromList [(1,2)]
+-}
 fromList :: Eq k => [(k,v)] -> Table k v
 fromList = foldl (\t (k,v) -> Table.insert t k v) Table.empty
 
@@ -112,12 +130,19 @@ fromList = foldl (\t (k,v) -> Table.insert t k v) Table.empty
    EXAMPLES:
  -}
 encode :: HuffmanTree -> String -> BitCode
---encode = undefined
 encode hTree ""  = []
 encode hTree (x:xs) = (getBitCode hTree x) ++ encode hTree xs
 
--- PRE chr must be in tree
--- tree cant be Empty
+
+{- getBitCode hTree chr
+  gets the input characters corresponding Huffman code
+  PRE: chr must be in hTree, hTree cant be Empty
+  RETURNS : BitCode
+
+  EXAMPLES:
+  getBitCode (Node (Node (Leaf 'b' 1) 2 (Leaf 'a' 1)) 5 (Leaf 'c' 3)) 'c' = [True]
+-}
+
 getBitCode :: HuffmanTree -> Char -> BitCode
 getBitCode hTree chr = let Just x = Table.lookup (codeTable hTree) chr in x
 
@@ -141,6 +166,9 @@ decompress (Leaf c n) [] = c : decompress (Leaf c (n-1)) []
 decompress hTree bc = decompressAux hTree hTree bc
 
 
+{- decompressAux t1 t2 BitCode
+
+-}
 decompressAux :: HuffmanTree -> HuffmanTree -> BitCode -> String
 decompressAux _ (Leaf c n) [] = [c]
 decompressAux _ _ [] = ""
