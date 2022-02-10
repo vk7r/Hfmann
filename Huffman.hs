@@ -1,3 +1,6 @@
+-- PKD Assignment 3, Hugo Eidmann & Viktor Kangasniemi
+
+
 -- DO NOT MODIFY THE FOLLOWING LINES
 
 module Huffman(HuffmanTree, characterCounts, huffmanTree, codeTable, encode, compress, decompress) where
@@ -35,7 +38,11 @@ characterCounts' acc (x:xs)
   | otherwise = characterCounts' (Table.insert acc x 1) xs
 
 -- modify and add comments as needed
+{-
+  INVARIANT: the most common char must be closest to the root node
+-}
 data HuffmanTree = Empty | Leaf Char Int | Node (HuffmanTree) Int (HuffmanTree) deriving Show
+
 
 s = "this is an example of a huffman tree"
 tree1 = (Node (Node (Leaf 'b' 1) 2 (Leaf 'a' 1)) 5 (Leaf 'c' 3)) -- [True, False, False, True, True]
@@ -53,6 +60,10 @@ huffmanTree t
   | null (toList t) = Empty
   | otherwise = hqmerge $ Table.iterate t hqinsert PriorityQueue.empty
 
+  {- toList t
+    Export a table t as a list of key-value tuples.
+    EXAMPLE: (fromList . toList) t == t
+  -}
 toList :: Table k v -> [(k, v)]
 toList t = Table.iterate t (\a b -> b : a) []
 
@@ -92,24 +103,28 @@ hqmerge' q =
 
 
 {- codeTable h
+   Creates a table that maps each character from the input tree to its respective Huffman code
    RETURNS: a table that maps each character in h to its Huffman code
-   EXAMPLES:
+
+   EXAMPLES: codeTable (Node (Node (Leaf 'b' 1) 2 (Leaf 'a' 1)) 5 (Leaf 'c' 3)) =
+                          T [('b',[False,False]),('a',[False,True]),('c',[True])]
  -}
 codeTable :: HuffmanTree -> Table Char BitCode
+-- VARIANT: fromList + codeLst
 codeTable Empty = Table.empty
 codeTable hTree = fromList (codeLst hTree [])
 
 
 {- codeLst hTree BitCode
-  Completely goes through the given HuffmanTree and maps each leafs char to its respective Huffman code
+   Goes through the given HuffmanTree and maps each leafs char to its respective Huffman code
   PRE: input tree is not Empty
   RETURNS: a Table that maps each char to its respective Huffman code from the input tree
 
-  EXAMPLES: codeTable (Node (Node (Leaf 'b' 1) 2 (Leaf 'a' 1)) 5 (Leaf 'c' 3)) =
-                         T [('b',[False,False]),('a',[False,True]),('c',[True])]
+  EXAMPLES: codeLst (Node (Node (Leaf 'b' 1) 2 (Leaf 'a' 1)) 5 (Leaf 'c' 3)) =
+                         [('b',[False,False]),('a',[False,True]),('c',[True])]
 -}
--- PRE input tree is non empty
 codeLst :: HuffmanTree -> BitCode -> [(Char, BitCode)]
+-- VARIANT: (The amount of Nodes/Leaf in the tree) - 1
 codeLst (Leaf c n) lst = [(c, lst)]
 codeLst (Node l a r) lst = codeLst l (lst ++ [False]) ++ codeLst r (lst ++ [True])
 
@@ -122,14 +137,19 @@ codeLst (Node l a r) lst = codeLst l (lst ++ [False]) ++ codeLst r (lst ++ [True
   EXAMPLE: fromList [(1,1),(1,2)] == fromList [(1,2)]
 -}
 fromList :: Eq k => [(k,v)] -> Table k v
+-- VARIANT: (length of Table) - 1
 fromList = foldl (\t (k,v) -> Table.insert t k v) Table.empty
 
 {- encode h s
+   encodes a huffmanTree from the given string
    PRE: All characters in s appear in h
    RETURNS: the concatenation of the characters of s encoded using the Huffman code table of h.
-   EXAMPLES:
+
+   EXAMPLES: encode (Node (Leaf 'a' 2) 4 (Leaf 'b' 2)) "abba" = [False,True,True,False]
+             encode Empty "" = []
  -}
 encode :: HuffmanTree -> String -> BitCode
+-- VARIANT:  length of String + length of (codeTable hTree)
 encode hTree ""  = []
 encode hTree (x:xs) = (getBitCode hTree x) ++ encode hTree xs
 
@@ -142,34 +162,50 @@ encode hTree (x:xs) = (getBitCode hTree x) ++ encode hTree xs
   EXAMPLES:
   getBitCode (Node (Node (Leaf 'b' 1) 2 (Leaf 'a' 1)) 5 (Leaf 'c' 3)) 'c' = [True]
 -}
-
 getBitCode :: HuffmanTree -> Char -> BitCode
+-- VARIANT: lenght of Table
 getBitCode hTree chr = let Just x = Table.lookup (codeTable hTree) chr in x
 
 {- compress s
+   Compresses the given string
    RETURNS: (a Huffman tree based on s, the Huffman coding of s under this tree)
-   EXAMPLES:
+
+   EXAMPLES: compress "abba" = (Node (Leaf 'a' 2) 4 (Leaf 'b' 2), [False,True,True,False])
+             compress "" = (Empty, [])
  -}
 compress :: String -> (HuffmanTree, BitCode)
+-- VARIANT: (length(String) -1) + length of String + length of (codeTable Tree)  -- variant of huffmanTree + variant of encode
 compress str = (hTree, encode hTree str)
   where hTree = huffmanTree ( characterCounts str)
 
 
 {- decompress h bits
+   decompresses the compressed string
    PRE:  bits is a concatenation of valid Huffman code words for h
    RETURNS: the decoding of bits under h
-   EXAMPLES:
+
+   EXAMPLES: decompress (huffmanTree (characterCounts "abba")) [False,True,True,False] = "abba"
+             decompress Empty [] = ""
+             decompress (Leaf 'a' 3) [] = "aaa" 
  -}
 decompress :: HuffmanTree -> BitCode -> String
+-- VARIANT: lenght of BitCode - 1 or n-1
 decompress (Leaf c 0) [] = ""
 decompress (Leaf c n) [] = c : decompress (Leaf c (n-1)) []
 decompress hTree bc = decompressAux hTree hTree bc
 
 
 {- decompressAux t1 t2 BitCode
+   Goes through the huffmanTree according to the BitCode
+   and creates a string of all chars in correct order
+   PRE: The given BitCode must be correlated with the given hTree
+   RETURNS: The String that was compressed within the given hTree & BitCode
 
+   EXAMPLES: decompressAux (Node (Leaf 'a' 2) 4 (Leaf 'b' 2)) (Node (Leaf 'a' 2) 4 (Leaf 'b' 2)) [False,True,True,False] = "abba"
+             decompressAux Empty Empty [] = ""
 -}
 decompressAux :: HuffmanTree -> HuffmanTree -> BitCode -> String
+-- VARIANT: lenght of BitCode - 1
 decompressAux _ (Leaf c n) [] = [c]
 decompressAux _ _ [] = ""
 decompressAux hTree (Leaf c n) xs = c : decompressAux hTree hTree xs
